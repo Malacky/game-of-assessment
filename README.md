@@ -1,5 +1,8 @@
 # Implementation of the Game Of Life using the SFML multimedia libraries and C++17.
 
+[![demonstration video](http://img.youtube.com/vi/T6eouj-GRJA/0.jpg)](http://www.youtube.com/watch?v=T6eouj-GRJA)
+
+
 You will need the [SFML libraries](https://www.sfml-dev.org/tutorials/2.5/).
 Any feedback is greatly appreciated.
 
