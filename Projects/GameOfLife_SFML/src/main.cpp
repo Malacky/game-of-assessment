@@ -1,13 +1,16 @@
 #include <iostream>
 #include <chrono>
+#include <string>
 
 #include <SFML/Graphics.hpp>
 
-#include "Cell.h"
+#include "Cell.h" 
 #include "FileProcessing.h"
 #include "Window.h"
 #include "HandleInput.h"
 #include "GUI.h"
+
+constexpr auto assetsFilePath = "./assets/bitmap.jpg";
 
 int main(int argc, char **argv) {
 	//Process the map/rule file, and then construct the map.
@@ -29,7 +32,7 @@ int main(int argc, char **argv) {
 	window.getSFMLWindow().setVerticalSyncEnabled(false);
 
 	sf::Texture texture;
-	texture.loadFromFile("..\\assets\\bitmap.jpg");
+	texture.loadFromFile(assetsFilePath);
 	GUIs guis(texture); //Create guis.
 	{
 		guis.emplace<RewindButton>(sf::FloatRect(window.getSFMLWindow().getSize().x / 2 - 120, window.getSFMLWindow().getSize().y - 60, 60, 60), cells);
