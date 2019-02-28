@@ -10,7 +10,7 @@
 #include "HandleInput.h"
 #include "GUI.h"
 
-constexpr auto assetsFilePath = "./assets/bitmap.jpg";
+constexpr auto assetsFilePath = "../assets/bitmap.jpg";
 
 int main(int argc, char **argv) {
 	//Process the map/rule file, and then construct the map.
