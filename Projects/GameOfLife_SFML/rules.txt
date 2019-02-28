@@ -1,0 +1,4 @@
+;These are the rules for the Game of Life.
+CELL ALIVE -> DEAD IF N IS LESS THAN 2
+CELL ALIVE -> DEAD IF N IS GREATER THAN 3
+CELL DEAD -> ALIVE IF N IS EQUAL TO 3
