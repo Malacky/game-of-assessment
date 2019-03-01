@@ -343,3 +343,7 @@ healthchecksdb
 
 # Backup folder for Package Reference Convert tool in Visual Studio 2017
 MigrationBackup/
+/CppProperties.json
+/game-of-life.sln
+/game-of-life.vcxproj
+/game-of-life.vcxproj.filters

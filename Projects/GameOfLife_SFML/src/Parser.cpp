@@ -107,7 +107,7 @@ void Parser::createParseTree(std::vector<Token> tokens) { //Creates parse tree a
 		//Newline indicates the end of an expression.
 		//And perform syntax checking...
 		if (token.name == Token::endofexpressionKeyword) {
-			if (lastNode->token.name == Token::ifnisKeyword || lastNode->token.name == Token::arrowKeyword || lastNode->token.category == Token::identifier)
+			if (lastNode->token.name == Token::ifnisKeyword || lastNode->token.name == Token::arrowKeyword || lastNode->token.name == Token::cellIdentifier)
 				throw(std::logic_error("Syntax Error: A rule cannot end with either the keyword IF N IS, ->, or identifiers."));
 
 			if (currRoot)
@@ -116,7 +116,7 @@ void Parser::createParseTree(std::vector<Token> tokens) { //Creates parse tree a
 			lastNode = nullptr;
 		}
 		else if (token.name == Token::aliveKeyword) {
-			if (lastNode->token.category == Token::identifier) {
+			if (lastNode->token.name == Token::cellIdentifier) {
 				lastNode->setParent(newNode);
 				newNode->setLeftChild(lastNode);
 			}
@@ -126,7 +126,7 @@ void Parser::createParseTree(std::vector<Token> tokens) { //Creates parse tree a
 			}
 		}
 		else if (token.name == Token::deadKeyword) {
-			if (lastNode->token.category == Token::identifier) {
+			if (lastNode->token.name == Token::cellIdentifier) {
 				lastNode->setParent(newNode);
 				newNode->setLeftChild(lastNode);
 			}
@@ -172,7 +172,7 @@ void Parser::createParseTree(std::vector<Token> tokens) { //Creates parse tree a
 			lastNode->setLeftChild(newNode);
 			newNode->setParent(lastNode);
 		}
-		else if (token.category == Token::literal) {
+		else if (token.name == Token::literal) {
 			if (lastNode->token.name != Token::lessthanKeyword && lastNode->token.name != Token::greaterthanKeyword && lastNode->token.name != Token::orequaltoKeyword && lastNode->token.name != Token::ifnisKeyword)
 				throw(std::logic_error(std::string("Syntax Error: literals must be prepended by a conditional keyword.")));
 
@@ -231,15 +231,15 @@ std::vector<Token> Tokenizer::operator()(std::string tokensStr) { //Tokenize str
 
 	//Delimit string into keywords.
 	for (char const* delimiter : keywordDelimiters) {
-		auto result = findAllOccurancesOf(std::string(delimiter), commentsRemovedStr, Token::Category::keyword);
+		auto result = findAllOccurancesOf(std::string(delimiter), commentsRemovedStr);
 		for (auto element : result) {
 			tokensAndIndex.push_back(element);
 		}
 	}
 
 	//Delimit string into identifiers.
-	for (char const* delimiter : identifierDelimiters) {
-		auto result = findAllOccurancesOf(std::string(delimiter), commentsRemovedStr, Token::Category::identifier);
+	for (char const *delimiter : identifierDelimiters) {
+		auto result = findAllOccurancesOf(std::string(delimiter), commentsRemovedStr);
 		for (auto element : result) {
 			tokensAndIndex.push_back(element);
 		}
@@ -247,7 +247,7 @@ std::vector<Token> Tokenizer::operator()(std::string tokensStr) { //Tokenize str
 
 	//Delimit string into literals.
 	auto result = getLiterals(commentsRemovedStr);
-	for (auto element : result) {
+	for (auto &element : result) {
 		tokensAndIndex.push_back(element);
 	}
 
@@ -258,16 +258,16 @@ std::vector<Token> Tokenizer::operator()(std::string tokensStr) { //Tokenize str
 
 	//Add all tokens to the final vector of tokens.
 	std::vector<Token> tokens;
-	for (std::vector<std::pair<Token, std::string::size_type>>::size_type i = 0; i < tokensAndIndex.size(); ++i) {
-		tokens.push_back(tokensAndIndex[i].first);
+	for (auto &elem : tokensAndIndex) {
+		tokens.push_back(elem.first);
 	}
 
-	tokens.emplace_back(Token::keyword, "\n"); //Newline indicates the end of an expression.
+	tokens.emplace_back("\n"); //Newline indicates the end of an expression.
 
 	return tokens;
 }
 
-std::vector<std::pair<Token, std::string::size_type>> Tokenizer::findAllOccurancesOf(std::string str1, std::string str2, Token::Category name) {
+std::vector<std::pair<Token, std::string::size_type>> Tokenizer::findAllOccurancesOf(std::string str1, std::string str2) {
 	std::vector<std::pair<Token, std::string::size_type>> vec;
 
 	const auto str1Size = str1.size();
@@ -278,7 +278,7 @@ std::vector<std::pair<Token, std::string::size_type>> Tokenizer::findAllOccuranc
 
 		if (c1 == c2) {
 			if (str1Index == str1Size - 1) {
-				Token newToken(name, str1);
+				Token newToken(str1);
 				vec.push_back(std::make_pair(newToken, str2Index - str1Index));
 				str1Index = 0;
 			}
@@ -305,14 +305,14 @@ std::vector<std::pair<Token, std::string::size_type>> Tokenizer::getLiterals(std
 			wasLastCharDigit = true;
 		}
 		else if (wasLastCharDigit) {
-			Token currToken(Token::Category::literal, currLiteralValue);
+			Token currToken(currLiteralValue);
 			vec.push_back(std::make_pair(currToken, i - currLiteralValue.size()));
 			currLiteralValue.clear();
 			wasLastCharDigit = false;
 		}
 	}
 	if (wasLastCharDigit) {
-		Token currToken(Token::Category::literal, currLiteralValue);
+		Token currToken(currLiteralValue);
 		vec.push_back(std::make_pair(currToken, str.size() - currLiteralValue.size()));
 	}
 

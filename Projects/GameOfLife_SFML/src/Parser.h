@@ -9,16 +9,8 @@
 
 class Cell;
 
-//const std::array<char const*, 8> keywordDelimiters{ "->", "ALIVE", "DEAD", "IF N IS", "LESS THAN", "GREATER THAN", "OR EQUAL TO", "\n" };
-//const std::array<char const*, 1> identifierDelimiters{ "CELL" };
-
 class Token {
 public:
-	enum Category {
-		keyword,
-		identifier,
-		literal
-	};
 	enum Name {
 		arrowKeyword,
 		aliveKeyword,
@@ -28,39 +20,40 @@ public:
 		greaterthanKeyword,
 		orequaltoKeyword,
 		endofexpressionKeyword,
-		cellIdentifier
+		cellIdentifier,
+		literal
 	};
 
-	Token(Category c, std::string n) : category{ c } {
+	Token(std::string n) {
 		if (n == "->")
 			name = arrowKeyword;
-		if (n == "ALIVE")
+		else if (n == "ALIVE")
 			name = aliveKeyword;
-		if (n == "DEAD")
+		else if (n == "DEAD")
 			name = deadKeyword;
-		if (n == "IF N IS")
+		else if (n == "IF N IS")
 			name = ifnisKeyword;
-		if (n == "LESS THAN")
+		else if (n == "LESS THAN")
 			name = lessthanKeyword;
-		if (n == "GREATER THAN")
+		else if (n == "GREATER THAN")
 			name = greaterthanKeyword;
-		if (n == "OR EQUAL TO")
+		else if (n == "OR EQUAL TO")
 			name = orequaltoKeyword;
-		if (n == "\n")
+		else if (n == "\n")
 			name = endofexpressionKeyword;
 
-		if (n == "CELL")
+		else if (n == "CELL")
 			name = cellIdentifier;
 
-		if (c == literal) {
+		else { //literal
 			optionalValue = std::stoi(n);
+			name = literal;
 		}
 	}
 	Token() = default;
 
 	int optionalValue{ 0 };
-	Category category;
-	Name name;
+	Name name{};
 private:
 };
 
@@ -104,7 +97,7 @@ class Tokenizer {
 public:
 	std::vector<Token> operator()(std::string str);
 private:
-	std::vector<std::pair<Token, std::string::size_type>> findAllOccurancesOf(std::string str, std::string str2, Token::Category name); //Searches for each occurance of str1 in str2. Returns vector of pairs holding the Token with given name that was found and the index of the start substring in str2.
+	std::vector<std::pair<Token, std::string::size_type>> findAllOccurancesOf(std::string str, std::string str2); //Searches for each occurance of str1 in str2. Returns vector of pairs holding the Token with given name that was found and the index of the start substring in str2.
 	std::vector<std::pair<Token, std::string::size_type>> getLiterals(std::string str);
 
 	const std::array<char const*, 8> keywordDelimiters{ "->", "ALIVE", "DEAD", "IF N IS", "LESS THAN", "GREATER THAN", "OR EQUAL TO", "\n" };
