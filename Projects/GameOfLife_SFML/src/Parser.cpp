@@ -17,20 +17,20 @@ Cell &Parser::operator()(Cell &cell) { //Apply rules to the cell. (set futures)
 }
 
 Cell &Parser::evaluateRulesAndSetFuture(Cell &cell, BinaryParseTree &bpt) {
-	if (bpt.token.value == "->") {
+	if (bpt.token.name == Token::arrowKeyword) {
 		if (conditional(cell, bpt)) {
 			evaluateRulesAndSetFuture(cell, *bpt.getRightChild());
 		}
 	}
-	else if (bpt.token.value == "IF N IS") {
+	else if (bpt.token.name == Token::ifnisKeyword) {
 		if (conditional(cell, bpt)) {
 			evaluateRulesAndSetFuture(cell, *bpt.getRightChild());
 		}
 	}
-	else if (bpt.token.value == "ALIVE") {
+	else if (bpt.token.name == Token::aliveKeyword) {
 		cell.setFutureAlive(true);
 	}
-	else if (bpt.token.value == "DEAD") {
+	else if (bpt.token.name == Token::deadKeyword) {
 		cell.setFutureAlive(false);
 	}
 
@@ -41,37 +41,37 @@ bool Parser::conditional(Cell &cell, BinaryParseTree &bpt) { //Evaluate a condit
 	std::shared_ptr<BinaryParseTree> keywordOrLiteralNode = bpt.getLeftChild();
 	std::shared_ptr<BinaryParseTree> keywordOrOperandOfKeyworOrLiteralNode = keywordOrLiteralNode->getLeftChild();
 
-	if (bpt.token.value == "IF N IS") {
+	if (bpt.token.name == Token::ifnisKeyword) {
 		if (keywordOrOperandOfKeyworOrLiteralNode) {
-			if (keywordOrLiteralNode->token.value == "LESS THAN") {
-				if (keywordOrOperandOfKeyworOrLiteralNode->token.value == "OR EQUAL TO") {
+			if (keywordOrLiteralNode->token.name == Token::lessthanKeyword) {
+				if (keywordOrOperandOfKeyworOrLiteralNode->token.name == Token::orequaltoKeyword) {
 					std::shared_ptr<BinaryParseTree> operand = keywordOrOperandOfKeyworOrLiteralNode->getLeftChild();
-					return cell.aliveNeighborCount() <= std::stoul(operand->token.value);
+					return cell.aliveNeighborCount() <= operand->token.optionalValue;
 				}
 				else
-					return cell.aliveNeighborCount() < std::stoul(keywordOrOperandOfKeyworOrLiteralNode->token.value);
+					return cell.aliveNeighborCount() < keywordOrOperandOfKeyworOrLiteralNode->token.optionalValue;
 			}
 
-			else if (keywordOrLiteralNode->token.value == "GREATER THAN") {
-				if (keywordOrOperandOfKeyworOrLiteralNode->token.value == "OR EQUAL TO") {
+			else if (keywordOrLiteralNode->token.name == Token::greaterthanKeyword) {
+				if (keywordOrOperandOfKeyworOrLiteralNode->token.name == Token::orequaltoKeyword) {
 					std::shared_ptr<BinaryParseTree> operand = keywordOrOperandOfKeyworOrLiteralNode->getLeftChild();
-					return cell.aliveNeighborCount() >= std::stoul(operand->token.value);
+					return cell.aliveNeighborCount() >= operand->token.optionalValue;
 				}
 				else
-					return cell.aliveNeighborCount() > std::stoul(keywordOrOperandOfKeyworOrLiteralNode->token.value);
+					return cell.aliveNeighborCount() > keywordOrOperandOfKeyworOrLiteralNode->token.optionalValue;
 			}
 		}
 		else {
-			return cell.aliveNeighborCount() == std::stoul(keywordOrLiteralNode->token.value);
+			return cell.aliveNeighborCount() == keywordOrLiteralNode->token.optionalValue;
 		}
 	}
 	else { //->
-		if (keywordOrLiteralNode->token.value == "ALIVE") {
-			if (keywordOrOperandOfKeyworOrLiteralNode->token.value == "CELL")
+		if (keywordOrLiteralNode->token.name == Token::aliveKeyword) {
+			if (keywordOrOperandOfKeyworOrLiteralNode->token.name == Token::cellIdentifier)
 				return cell.getAlive();
 		}
-		else if (keywordOrLiteralNode->token.value == "DEAD") {
-			if (keywordOrOperandOfKeyworOrLiteralNode->token.value == "CELL")
+		else if (keywordOrLiteralNode->token.name == Token::deadKeyword) {
+			if (keywordOrOperandOfKeyworOrLiteralNode->token.name == Token::cellIdentifier)
 				return !cell.getAlive();
 		}
 	}
@@ -93,10 +93,10 @@ void Parser::createParseTree(std::vector<Token> tokens) { //Creates parse tree a
 		Token &token = *beg;
 
 		std::shared_ptr<BinaryParseTree> newNode = nullptr;
-		if (token.value != "\n") {
+		if (token.name != Token::endofexpressionKeyword) {
 			newNode = std::make_shared<BinaryParseTree>(token);
 
-			if (token.value != "CELL" && !lastNode) { //If the first keyword is not equal to "CELL"...
+			if (token.name != Token::cellIdentifier && !lastNode) { //If the first keyword is not equal to "CELL"...
 				throw(std::logic_error("Basic Syntax Error."));
 			}
 		}
@@ -106,8 +106,8 @@ void Parser::createParseTree(std::vector<Token> tokens) { //Creates parse tree a
 		//Non-conditional statements only use their left child as operands.
 		//Newline indicates the end of an expression.
 		//And perform syntax checking...
-		if (token.value == "\n") {
-			if (lastNode->token.value == "IF N IS" || lastNode->token.value == "->" || lastNode->token.name == Token::identifier)
+		if (token.name == Token::endofexpressionKeyword) {
+			if (lastNode->token.name == Token::ifnisKeyword || lastNode->token.name == Token::arrowKeyword || lastNode->token.category == Token::identifier)
 				throw(std::logic_error("Syntax Error: A rule cannot end with either the keyword IF N IS, ->, or identifiers."));
 
 			if (currRoot)
@@ -115,8 +115,8 @@ void Parser::createParseTree(std::vector<Token> tokens) { //Creates parse tree a
 			currRoot = nullptr;
 			lastNode = nullptr;
 		}
-		else if (token.value == "ALIVE") {
-			if (lastNode->token.name == Token::identifier) {
+		else if (token.name == Token::aliveKeyword) {
+			if (lastNode->token.category == Token::identifier) {
 				lastNode->setParent(newNode);
 				newNode->setLeftChild(lastNode);
 			}
@@ -125,8 +125,8 @@ void Parser::createParseTree(std::vector<Token> tokens) { //Creates parse tree a
 				newNode->setParent(lastNode);
 			}
 		}
-		else if (token.value == "DEAD") {
-			if (lastNode->token.name == Token::identifier) {
+		else if (token.name == Token::deadKeyword) {
+			if (lastNode->token.category == Token::identifier) {
 				lastNode->setParent(newNode);
 				newNode->setLeftChild(lastNode);
 			}
@@ -135,15 +135,15 @@ void Parser::createParseTree(std::vector<Token> tokens) { //Creates parse tree a
 				newNode->setParent(lastNode);
 			}
 		}
-		else if (token.value == "->") {
-			if (lastNode->token.value != "ALIVE" && lastNode->token.value != "DEAD")
+		else if (token.name == Token::arrowKeyword) {
+			if (lastNode->token.name != Token::Name::aliveKeyword && lastNode->token.name != Token::Name::deadKeyword)
 				throw(std::logic_error("Syntax Error: The -> keyword must be prepended by the keywords DEAD or ALIVE."));
 
 			lastNode->setParent(newNode);
 			newNode->setLeftChild(lastNode);
 			currRoot = newNode;
 		}
-		else if (token.value == "IF N IS") {
+		else if (token.name == Token::ifnisKeyword) {
 			if (!lastNode->getParent())
 				throw(std::logic_error("Syntax Error: IF N IS is not valid in this context."));
 
@@ -151,30 +151,30 @@ void Parser::createParseTree(std::vector<Token> tokens) { //Creates parse tree a
 			lastNode->setParent(newNode);
 			newNode->setRightChild(lastNode);
 		}
-		else if (token.value == "LESS THAN") {
-			if (lastNode->token.value != "IF N IS" && lastNode->token.value != "->")
+		else if (token.name == Token::lessthanKeyword) {
+			if (lastNode->token.name != Token::ifnisKeyword && lastNode->token.name != Token::arrowKeyword)
 				throw(std::logic_error("Syntax Error: LESS THAN is not valid in this context."));
 
 			lastNode->setLeftChild(newNode);
 			newNode->setParent(lastNode);
 		}
-		else if (token.value == "GREATER THAN") {
-			if (lastNode->token.value != "IF N IS" && lastNode->token.value != "->")
+		else if (token.name == Token::greaterthanKeyword) {
+			if (lastNode->token.name != Token::ifnisKeyword && lastNode->token.name != Token::arrowKeyword)
 				throw(std::logic_error("Syntax Error: GREATER THAN is not valid in this context."));
 
 			lastNode->setLeftChild(newNode);
 			newNode->setParent(lastNode);
 		}
-		else if (token.value == "OR EQUAL TO") {
-			if (lastNode->token.value != "GREATER THAN" && lastNode->token.value != "LESS THAN")
+		else if (token.name == Token::orequaltoKeyword) {
+			if (lastNode->token.name != Token::greaterthanKeyword && lastNode->token.name != Token::lessthanKeyword)
 				throw(std::logic_error("Syntax Error: OR EQUAL TO is not valid in this context."));
 
 			lastNode->setLeftChild(newNode);
 			newNode->setParent(lastNode);
 		}
-		else if (token.name == Token::literal) {
-			if (lastNode->token.value != "LESS THAN" && lastNode->token.value != "GREATER THAN" && lastNode->token.value != "OR EQUAL TO" && lastNode->token.value != "IF N IS")
-				throw(std::logic_error(std::string("Syntax Error: literal '") + newNode->token.value + "' must be prepended by a conditional keyword."));
+		else if (token.category == Token::literal) {
+			if (lastNode->token.name != Token::lessthanKeyword && lastNode->token.name != Token::greaterthanKeyword && lastNode->token.name != Token::orequaltoKeyword && lastNode->token.name != Token::ifnisKeyword)
+				throw(std::logic_error(std::string("Syntax Error: literals must be prepended by a conditional keyword.")));
 
 			lastNode->setLeftChild(newNode);
 			newNode->setParent(lastNode);
@@ -184,7 +184,7 @@ void Parser::createParseTree(std::vector<Token> tokens) { //Creates parse tree a
 	}
 }
 
-std::vector<Token>Tokenizer::operator()(std::string tokensStr) { //Tokenize string provided to the constructor.
+std::vector<Token> Tokenizer::operator()(std::string tokensStr) { //Tokenize string provided to the constructor.
 	//Detect and remove lines that start with the ';' character (comments).
 	std::string commentsRemovedStr;
 
@@ -231,7 +231,7 @@ std::vector<Token>Tokenizer::operator()(std::string tokensStr) { //Tokenize stri
 
 	//Delimit string into keywords.
 	for (char const* delimiter : keywordDelimiters) {
-		auto result = findAllOccurancesOf(std::string(delimiter), commentsRemovedStr, Token::Name::keyword);
+		auto result = findAllOccurancesOf(std::string(delimiter), commentsRemovedStr, Token::Category::keyword);
 		for (auto element : result) {
 			tokensAndIndex.push_back(element);
 		}
@@ -239,7 +239,7 @@ std::vector<Token>Tokenizer::operator()(std::string tokensStr) { //Tokenize stri
 
 	//Delimit string into identifiers.
 	for (char const* delimiter : identifierDelimiters) {
-		auto result = findAllOccurancesOf(std::string(delimiter), commentsRemovedStr, Token::Name::identifier);
+		auto result = findAllOccurancesOf(std::string(delimiter), commentsRemovedStr, Token::Category::identifier);
 		for (auto element : result) {
 			tokensAndIndex.push_back(element);
 		}
@@ -267,7 +267,7 @@ std::vector<Token>Tokenizer::operator()(std::string tokensStr) { //Tokenize stri
 	return tokens;
 }
 
-std::vector<std::pair<Token, std::string::size_type>> Tokenizer::findAllOccurancesOf(std::string str1, std::string str2, Token::Name name) {
+std::vector<std::pair<Token, std::string::size_type>> Tokenizer::findAllOccurancesOf(std::string str1, std::string str2, Token::Category name) {
 	std::vector<std::pair<Token, std::string::size_type>> vec;
 
 	const auto str1Size = str1.size();
@@ -305,14 +305,14 @@ std::vector<std::pair<Token, std::string::size_type>> Tokenizer::getLiterals(std
 			wasLastCharDigit = true;
 		}
 		else if (wasLastCharDigit) {
-			Token currToken(Token::Name::literal, currLiteralValue);
+			Token currToken(Token::Category::literal, currLiteralValue);
 			vec.push_back(std::make_pair(currToken, i - currLiteralValue.size()));
 			currLiteralValue.clear();
 			wasLastCharDigit = false;
 		}
 	}
 	if (wasLastCharDigit) {
-		Token currToken(Token::Name::literal, currLiteralValue);
+		Token currToken(Token::Category::literal, currLiteralValue);
 		vec.push_back(std::make_pair(currToken, str.size() - currLiteralValue.size()));
 	}
 

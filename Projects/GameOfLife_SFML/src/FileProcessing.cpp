@@ -37,7 +37,7 @@ void processMapRuleFiles(char **argv, int argc, Cells *cells) {
 		mapStr += c;
 
 	addCellsFromStr(*cells, mapStr);
-	addNeighborsToAllCells(*cells);
+	cells->addNeighborsToAllCells();
 }
 
 void addCellsFromStr(Cells &cells, std::string str) {

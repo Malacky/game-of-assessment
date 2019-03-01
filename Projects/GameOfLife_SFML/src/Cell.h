@@ -45,9 +45,14 @@ public:
 };
 
 class Cell {
-	typedef std::vector<Cell*> neighborType;
 public:
+	typedef std::vector<Cell*> neighborType;
+
 	Cell(Position pos, bool a) : position{ pos }, alive{ a }, futureAlive{ a } {}
+
+	friend bool operator==(Cell &cell1, Cell &cell2) {
+		return cell1.getPosition() == cell2.getPosition();
+	}
 
 	void removeAllNeighbors();
 
@@ -76,7 +81,7 @@ public:
 		neighbors.push_back(cell);
 	}
 
-	auto &getNeighbors() const noexcept {
+	neighborType &getNeighbors() noexcept {
 		return neighbors;
 	}
 
@@ -188,7 +193,7 @@ private:
 			return iterator1.baseIterator != iterator2.baseIterator;
 		}
 
-		const const_reference operator*() {
+		const_reference operator*() {
 			return baseIterator->second;
 		}
 		const value_type *operator->() {
@@ -299,6 +304,16 @@ public:
 		history.appendChange(cell);
 	}
 
+	void addAsNeighborToEachNeighbor(Cell &cell);
+
+	void removeCell(Cell &cell); //Remove cell and remove cell from neighbors' neighbors container.
+
+	void addNeighborsToAllCells();
+
+	void addNeighbors(Cell &cell);
+
+	void addNeighborToCellIfPossible(Cell &cell, Position pos);
+
 	auto begin() {
 		return iterator(cellsContainer.begin());
 	}
@@ -313,18 +328,17 @@ public:
 	}
 
 private:
+	static constexpr std::chrono::seconds maintenanceTime{ 2 };
+
 	cellsContainerType cellsContainer;
 	historyType history;
 	Parser rules;
 	decltype(std::chrono::steady_clock::now()) tickStartTime{ std::chrono::steady_clock::now() };
-	std::chrono::nanoseconds timePassedSinceLastTick{};
+	std::chrono::nanoseconds timePassedSinceLastTick{ 0 };
 	std::chrono::milliseconds tickAimTime{ 1000 }, tickRewindAimTime{ 1000 };
+	std::chrono::nanoseconds timePassedSinceLastMaintenance{ 0 };
 	bool pause = false;
 	bool rewinding = false;
 };
-
-void addNeighborsToAllCells(Cells &cells);
-void addNeighbors(Cell &cell, Cells &cells);
-void addNeighborToCellIfPossible(Cell &cell, Cells &cells, Position pos);
 
 #endif

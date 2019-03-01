@@ -6,8 +6,9 @@
 
 #include "Cell.h"
 #include "Window.h"
+#include "Map.h"
 
-sf::Vector2f Cell::size(10, 10);
+sf::Vector2f Cell::size(60, 60);
 
 void Cells::updateCells() {
 	history.next();
@@ -30,7 +31,23 @@ void Cells::updateCells() {
 }
 
 void Cells::update() {
-	timePassedSinceLastTick += std::chrono::duration_cast<std::chrono::nanoseconds>(std::chrono::steady_clock::now() - tickStartTime);
+	auto lastTickTime = std::chrono::steady_clock::now() - tickStartTime;
+	timePassedSinceLastTick += std::chrono::duration_cast<std::chrono::nanoseconds>(lastTickTime);
+	timePassedSinceLastMaintenance += std::chrono::duration_cast<std::chrono::nanoseconds>(lastTickTime);
+	tickStartTime = std::chrono::steady_clock::now();
+
+	if (timePassedSinceLastMaintenance > maintenanceTime) { //Remove dead cells to reduce the amount of cells we have to look through in the updateCells function.
+		for (auto beg = begin(); beg != end(); ) {
+			if (!beg->getAlive()) {
+				auto copy = beg;
+				++beg;
+				removeCell(*copy);
+			}
+			else
+				++beg;
+		}
+		timePassedSinceLastMaintenance = std::chrono::nanoseconds{ 0 };
+	}
 
 	if (!getPause()) {
 		if (!getRewinding()) {
@@ -46,8 +63,6 @@ void Cells::update() {
 			}
 		}
 	}
-
-	tickStartTime = std::chrono::steady_clock::now();
 }
 
 void Cells::render(Window &window) const {
@@ -56,13 +71,15 @@ void Cells::render(Window &window) const {
 	auto last = cend();
 	for (auto beg = cbegin(); beg != last; ++beg) {
 		const Cell &cell = *beg;
-		Position pos = cell.getPosition();
-		const sf::Color &finalColor = cell.getAlive() ? sf::Color::Green : sf::Color::Red;
+		const Position pos = cell.getPosition();
+		const sf::Vector2f finalBegPos(pos.x * cell.size.x, pos.y * cell.size.y);
 
-		vertices.emplace_back(sf::Vector2f(pos.x * cell.size.x, pos.y * cell.size.y), finalColor);
-		vertices.emplace_back(sf::Vector2f(pos.x * cell.size.x + cell.size.x, pos.y * cell.size.y), finalColor);
-		vertices.emplace_back(sf::Vector2f(pos.x * cell.size.x + cell.size.x, pos.y * cell.size.y + cell.size.y), finalColor);
-		vertices.emplace_back(sf::Vector2f(pos.x * cell.size.x, pos.y * cell.size.y + cell.size.y), finalColor);
+		if (cell.getAlive()) {
+			vertices.emplace_back(sf::Vector2f(finalBegPos.x, finalBegPos.y), sf::Color::Green);
+			vertices.emplace_back(sf::Vector2f(finalBegPos.x + cell.size.x, finalBegPos.y), sf::Color::Green);
+			vertices.emplace_back(sf::Vector2f(finalBegPos.x + cell.size.x, finalBegPos.y + cell.size.y), sf::Color::Green);
+			vertices.emplace_back(sf::Vector2f(finalBegPos.x, finalBegPos.y + cell.size.y), sf::Color::Green);
+		}
 	}
 
 	window.getSFMLWindow().setView(window.getView());
@@ -70,40 +87,40 @@ void Cells::render(Window &window) const {
 	window.getSFMLWindow().draw(vertices.data(), vertices.size(), sf::Quads);
 }
 
-void addNeighborsToAllCells(Cells &cells) {
-	auto cellsAmount = cells.size();
+void Cells::addNeighborsToAllCells() {
+	auto cellsAmount = size();
 
-	for (auto beg = cells.begin(), end = cells.end(); beg != end; ++beg) {
+	for (auto beg = begin(), last = end(); beg != last; ++beg) {
 		Cell &currCell = *beg;
 
 		currCell.removeAllNeighbors(); //Remove all neighbors first.
-		addNeighbors(currCell, cells);
+		addNeighbors(currCell);
 	}
 }
 
-void addNeighbors(Cell &cell, Cells& cells) {
+void Cells::addNeighbors(Cell &cell) {
 	Position cellPosition = cell.getPosition();
 
 	//neighbors are added in order, starting from above the current cell.
-	addNeighborToCellIfPossible(cell, cells, cellPosition - Position{ 0, 1 });
+	addNeighborToCellIfPossible(cell, cellPosition - Position{ 0, 1 });
 
-	addNeighborToCellIfPossible(cell, cells, cellPosition - Position{ -1, 1 });
+	addNeighborToCellIfPossible(cell, cellPosition - Position{ -1, 1 });
 
-	addNeighborToCellIfPossible(cell, cells, cellPosition + Position{ 1, 0 });
+	addNeighborToCellIfPossible(cell, cellPosition + Position{ 1, 0 });
 
-	addNeighborToCellIfPossible(cell, cells, cellPosition + Position{ 1, 1 });
+	addNeighborToCellIfPossible(cell, cellPosition + Position{ 1, 1 });
 
-	addNeighborToCellIfPossible(cell, cells, cellPosition + Position{ 0, 1 });
+	addNeighborToCellIfPossible(cell, cellPosition + Position{ 0, 1 });
 
-	addNeighborToCellIfPossible(cell, cells, cellPosition + Position{ -1, 1 });
+	addNeighborToCellIfPossible(cell, cellPosition + Position{ -1, 1 });
 
-	addNeighborToCellIfPossible(cell, cells, cellPosition + Position{ -1, 0 });
+	addNeighborToCellIfPossible(cell, cellPosition + Position{ -1, 0 });
 
-	addNeighborToCellIfPossible(cell, cells, cellPosition - Position{ 1, 1 });
+	addNeighborToCellIfPossible(cell, cellPosition - Position{ 1, 1 });
 }
 
 void Cells::expandIfNecessary(Cell &cell) { //Add cells if current cell touches an edge and it is alive.
-	if (cell.getAlive() && cell.neighborCount() < 8) {
+	if (cell.neighborCount() < 8 && cell.getAlive()) {
 		Position cellPosition = cell.getPosition();
 		//Construct cells in empty locations.
 		addEmptyNeighborToCellsIfPossible(cellPosition - Position{ 0, 1 });
@@ -129,8 +146,8 @@ void Cell::removeAllNeighbors() {
 }
 
 
-void addNeighborToCellIfPossible(Cell &cell, Cells &cells, Position pos) { //Add a neighbor if it exists.
-	Cell *foundCell = cells.find(pos);
+void Cells::addNeighborToCellIfPossible(Cell &cell, Position pos) { //Add a neighbor if it exists.
+	Cell *foundCell = find(pos);
 	if (foundCell) {
 		cell.addNeighbor(foundCell);
 	}
@@ -141,13 +158,17 @@ void Cells::addEmptyNeighborToCellsIfPossible(Position pos) { //Add a new cell t
 		Cell &cell = emplace(pos, false); //Initially dead.
 
 		//Add all neighbors to the newly created cell.
-		addNeighbors(cell, *this);
+		addNeighbors(cell);
 
 		//Add newlyCreatedCell as a neighbor to each neighbor of newlyCreatedCell.
-		auto newlyCreatedCellNeighbors = cell.getNeighbors();
-		for (Cell *neighbor : newlyCreatedCellNeighbors) {
-			neighbor->addNeighbor(&cell);
-		}
+		addAsNeighborToEachNeighbor(cell);
+	}
+}
+
+void Cells::addAsNeighborToEachNeighbor(Cell &cell) {
+	auto cellNeighbors = cell.getNeighbors();
+	for (Cell *neighbor : cellNeighbors) {
+		neighbor->addNeighbor(&cell);
 	}
 }
 
@@ -174,7 +195,13 @@ void Cells::CellsHistory::last() {
 			bool alive = changes.second;
 
 			Cell *result = associatedCells->find(pos);
-			result->setAlive(!alive);
+			if (result)
+				result->setAlive(!alive);
+			else {
+				Cell &cell = associatedCells->emplace(pos, !alive);
+				associatedCells->addNeighbors(cell);
+				associatedCells->addAsNeighborToEachNeighbor(cell);
+			}
 		}
 		--currentIndex;
 	}
@@ -189,7 +216,20 @@ void Cells::CellsHistory::setLookingThroughHistory(bool lth) {
 	if (lookingThroughHistory != lth) {
 		lookingThroughHistory = lth;
 		if (!lth) {
-			addNeighborsToAllCells(*associatedCells); //Add neighbors if we stopped looking through history.
+			associatedCells->addNeighborsToAllCells(); //Add neighbors if we stopped looking through history.
 		}
 	}
+}
+
+void Cells::removeCell(Cell &cell) { //Remove cell and remove cell from neighbors' neighbors container.
+	for (Cell *neighbor : cell.getNeighbors()) {
+		for (Cell::neighborType::iterator beg = neighbor->getNeighbors().begin(), last = neighbor->getNeighbors().end(); beg != last; ++beg) {
+			if (cell == **beg) {
+				neighbor->getNeighbors().erase(beg);
+				break;
+			}
+		}
+	}
+
+	erase(cell.getPosition());
 }

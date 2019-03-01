@@ -6,23 +6,23 @@
 #include <SFML/Graphics.hpp>
 
 void handleKeyPressed(sf::Event::KeyEvent &keyEvent, Window &window) {
-	constexpr double originOffsetChange = 100;
+	constexpr double visibleOffset = 1000;
 
 	switch (keyEvent.code) {
 	case sf::Keyboard::Up:
-		window.moveView(sf::Vector2f(0, -originOffsetChange));
+		window.moveView(sf::Vector2f(0, -visibleOffset));
 		break;
 
 	case sf::Keyboard::Right:
-		window.moveView(sf::Vector2f(originOffsetChange, 0));
+		window.moveView(sf::Vector2f(visibleOffset, 0));
 		break;
 
 	case sf::Keyboard::Down:
-		window.moveView(sf::Vector2f(0, originOffsetChange));
+		window.moveView(sf::Vector2f(0, visibleOffset));
 		break;
 
 	case sf::Keyboard::Left:
-		window.moveView(sf::Vector2f(-originOffsetChange, 0));
+		window.moveView(sf::Vector2f(-visibleOffset, 0));
 		break;
 	}
 }

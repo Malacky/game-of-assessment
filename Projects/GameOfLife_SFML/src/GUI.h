@@ -13,7 +13,7 @@
 
 extern const sf::Vector2f textureSize;
 
-constexpr std::chrono::milliseconds minTimeBetweenEachFrame(15);
+constexpr std::chrono::milliseconds minTimeBetweenEachFrame(3);
 constexpr std::chrono::milliseconds maxSlowDownTime(1000);
 constexpr std::chrono::milliseconds toZero(1); //When rewinding/fast-forwarding reaches a point below this, it will round down to zero. (Speed limits will be removed.)
 

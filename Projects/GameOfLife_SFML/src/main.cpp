@@ -4,16 +4,16 @@
 
 #include <SFML/Graphics.hpp>
 
-#include "Cell.h" 
+#include "Cell.h"
 #include "FileProcessing.h"
 #include "Window.h"
 #include "HandleInput.h"
 #include "GUI.h"
 
-constexpr auto assetsFilePath = "../assets/bitmap.jpg";
+constexpr auto assetsFilePath = "..\\assets\\bitmap.jpg";
 
 int main(int argc, char **argv) {
-	//Process the map/rule file, and then construct the map.
+	//Process the map/rules file, and then construct the map.
 	Cells cells;
 	try {
 		processMapRuleFiles(argv, argc, &cells);

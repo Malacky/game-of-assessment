@@ -9,19 +9,58 @@
 
 class Cell;
 
+//const std::array<char const*, 8> keywordDelimiters{ "->", "ALIVE", "DEAD", "IF N IS", "LESS THAN", "GREATER THAN", "OR EQUAL TO", "\n" };
+//const std::array<char const*, 1> identifierDelimiters{ "CELL" };
+
 class Token {
 public:
-	enum Name {
+	enum Category {
 		keyword,
 		identifier,
 		literal
 	};
+	enum Name {
+		arrowKeyword,
+		aliveKeyword,
+		deadKeyword,
+		ifnisKeyword,
+		lessthanKeyword,
+		greaterthanKeyword,
+		orequaltoKeyword,
+		endofexpressionKeyword,
+		cellIdentifier
+	};
 
-	Token(Name n, std::string val) : name{ n }, value{ val } {}
+	Token(Category c, std::string n) : category{ c } {
+		if (n == "->")
+			name = arrowKeyword;
+		if (n == "ALIVE")
+			name = aliveKeyword;
+		if (n == "DEAD")
+			name = deadKeyword;
+		if (n == "IF N IS")
+			name = ifnisKeyword;
+		if (n == "LESS THAN")
+			name = lessthanKeyword;
+		if (n == "GREATER THAN")
+			name = greaterthanKeyword;
+		if (n == "OR EQUAL TO")
+			name = orequaltoKeyword;
+		if (n == "\n")
+			name = endofexpressionKeyword;
+
+		if (n == "CELL")
+			name = cellIdentifier;
+
+		if (c == literal) {
+			optionalValue = std::stoi(n);
+		}
+	}
 	Token() = default;
 
+	int optionalValue{ 0 };
+	Category category;
 	Name name;
-	std::string value;
 private:
 };
 
@@ -65,7 +104,7 @@ class Tokenizer {
 public:
 	std::vector<Token> operator()(std::string str);
 private:
-	std::vector<std::pair<Token, std::string::size_type>> findAllOccurancesOf(std::string str, std::string str2, Token::Name name); //Searches for each occurance of str1 in str2. Returns vector of pairs holding the Token with given name that was found and the index of the start substring in str2.
+	std::vector<std::pair<Token, std::string::size_type>> findAllOccurancesOf(std::string str, std::string str2, Token::Category name); //Searches for each occurance of str1 in str2. Returns vector of pairs holding the Token with given name that was found and the index of the start substring in str2.
 	std::vector<std::pair<Token, std::string::size_type>> getLiterals(std::string str);
 
 	const std::array<char const*, 8> keywordDelimiters{ "->", "ALIVE", "DEAD", "IF N IS", "LESS THAN", "GREATER THAN", "OR EQUAL TO", "\n" };

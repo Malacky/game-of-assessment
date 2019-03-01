@@ -1,5 +1,6 @@
 #ifndef WINDOW_H
 #define WINDOW_H
+#include "Map.h"
 
 #include <SFML/Graphics.hpp>
 
@@ -32,7 +33,7 @@ public:
 private:
 	sf::RenderWindow window;
 	sf::View view;
-	float zoomInSum{1};
+	float zoomInSum{ 1 };
 };
 
 #endif
