@@ -9,22 +9,22 @@
 #include <utility>
 #include <memory>
 
-Cell &Parser::operator()(Cell &cell) { //Apply rules to the cell. (set futures)
+Cell &Parser::operator()(Cell &cell, Cells &cells) { //Apply rules to the cell. (set futures)
 	for (auto &tree : parseTrees) {
-		evaluateRulesAndSetFuture(cell, *tree);
+		evaluateRulesAndSetFuture(cell, cells, *tree);
 	}
 	return cell;
 }
 
-Cell &Parser::evaluateRulesAndSetFuture(Cell &cell, BinaryParseTree &bpt) {
+Cell &Parser::evaluateRulesAndSetFuture(Cell &cell, Cells &cells, BinaryParseTree &bpt) {
 	if (bpt.token.name == Token::arrowKeyword) {
-		if (conditional(cell, bpt)) {
-			evaluateRulesAndSetFuture(cell, *bpt.getRightChild());
+		if (conditional(cell, cells, bpt)) {
+			evaluateRulesAndSetFuture(cell, cells, *bpt.getRightChild());
 		}
 	}
 	else if (bpt.token.name == Token::ifnisKeyword) {
-		if (conditional(cell, bpt)) {
-			evaluateRulesAndSetFuture(cell, *bpt.getRightChild());
+		if (conditional(cell, cells, bpt)) {
+			evaluateRulesAndSetFuture(cell, cells, *bpt.getRightChild());
 		}
 	}
 	else if (bpt.token.name == Token::aliveKeyword) {
@@ -37,7 +37,7 @@ Cell &Parser::evaluateRulesAndSetFuture(Cell &cell, BinaryParseTree &bpt) {
 	return cell;
 }
 
-bool Parser::conditional(Cell &cell, BinaryParseTree &bpt) { //Evaluate a condition.
+bool Parser::conditional(Cell &cell, Cells &cells, BinaryParseTree &bpt) { //Evaluate a condition.
 	std::shared_ptr<BinaryParseTree> keywordOrLiteralNode = bpt.getLeftChild();
 	std::shared_ptr<BinaryParseTree> keywordOrOperandOfKeyworOrLiteralNode = keywordOrLiteralNode->getLeftChild();
 
@@ -46,23 +46,23 @@ bool Parser::conditional(Cell &cell, BinaryParseTree &bpt) { //Evaluate a condit
 			if (keywordOrLiteralNode->token.name == Token::lessthanKeyword) {
 				if (keywordOrOperandOfKeyworOrLiteralNode->token.name == Token::orequaltoKeyword) {
 					std::shared_ptr<BinaryParseTree> operand = keywordOrOperandOfKeyworOrLiteralNode->getLeftChild();
-					return cell.aliveNeighborCount() <= operand->token.optionalValue;
+					return aliveNeighborCount(cell, cells) <= operand->token.optionalValue;
 				}
 				else
-					return cell.aliveNeighborCount() < keywordOrOperandOfKeyworOrLiteralNode->token.optionalValue;
+					return aliveNeighborCount(cell, cells) < keywordOrOperandOfKeyworOrLiteralNode->token.optionalValue;
 			}
 
 			else if (keywordOrLiteralNode->token.name == Token::greaterthanKeyword) {
 				if (keywordOrOperandOfKeyworOrLiteralNode->token.name == Token::orequaltoKeyword) {
 					std::shared_ptr<BinaryParseTree> operand = keywordOrOperandOfKeyworOrLiteralNode->getLeftChild();
-					return cell.aliveNeighborCount() >= operand->token.optionalValue;
+					return aliveNeighborCount(cell, cells) >= operand->token.optionalValue;
 				}
 				else
-					return cell.aliveNeighborCount() > keywordOrOperandOfKeyworOrLiteralNode->token.optionalValue;
+					return aliveNeighborCount(cell, cells) > keywordOrOperandOfKeyworOrLiteralNode->token.optionalValue;
 			}
 		}
 		else {
-			return cell.aliveNeighborCount() == keywordOrLiteralNode->token.optionalValue;
+			return aliveNeighborCount(cell, cells) == keywordOrLiteralNode->token.optionalValue;
 		}
 	}
 	else { //->

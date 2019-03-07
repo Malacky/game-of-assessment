@@ -18,7 +18,7 @@ void Cells::updateCells() {
 	}
 
 	for (Cell &cell : *this) {
-		rules(cell); //Evaluate rules and set the 'future'(futureAlive) of the cell.
+		rules(cell, *this); //Evaluate rules and set the 'future'(futureAlive) of the cell.
 	}
 
 	for (Cell &cell : *this) { //Apply the 'futures' to the cells.
@@ -37,15 +37,7 @@ void Cells::update() {
 	tickStartTime = std::chrono::steady_clock::now();
 
 	if (timePassedSinceLastMaintenance > maintenanceTime) { //Remove dead cells to reduce the amount of cells we have to look through in the updateCells function.
-		for (auto beg = begin(); beg != end(); ) {
-			if (!beg->getAlive()) {
-				auto copy = beg;
-				++beg;
-				removeCell(*copy);
-			}
-			else
-				++beg;
-		}
+		performMaintenance();
 		timePassedSinceLastMaintenance = std::chrono::nanoseconds{ 0 };
 	}
 
@@ -66,7 +58,7 @@ void Cells::update() {
 }
 
 void Cells::render(Window &window) const {
-	std::vector<sf::Vertex> vertices;
+	vertices.clear();
 
 	auto last = cend();
 	for (auto beg = cbegin(); beg != last; ++beg) {
@@ -90,11 +82,10 @@ void Cells::render(Window &window) const {
 void Cells::addNeighborsToAllCells() {
 	auto cellsAmount = size();
 
-	for (auto beg = begin(), last = end(); beg != last; ++beg) {
-		Cell &currCell = *beg;
+	for (Cell &cell : *this) {
 
-		currCell.removeAllNeighbors(); //Remove all neighbors first.
-		addNeighbors(currCell);
+		cell.removeAllNeighbors(); //Remove all neighbors first.
+		addNeighbors(cell);
 	}
 }
 
@@ -142,33 +133,39 @@ void Cells::expandIfNecessary(Cell &cell) { //Add cells if current cell touches 
 }
 
 void Cell::removeAllNeighbors() {
-	neighbors.clear();
+	neighborsPositions.clear();
+}
+
+Cell::neighborPositionType::size_type aliveNeighborCount(const Cell &cell, Cells &cells) {
+	Cell::neighborPositionType::size_type aliveCount = 0;
+	auto &neighborsPositions = cell.getNeighborsPositions();
+
+	for (Position pos : neighborsPositions) {
+		const Cell &neighbor = *cells.find(pos);
+		if (neighbor.getAlive())
+			++aliveCount;
+	}
+
+	return aliveCount;
 }
 
 
 void Cells::addNeighborToCellIfPossible(Cell &cell, Position pos) { //Add a neighbor if it exists.
 	Cell *foundCell = find(pos);
 	if (foundCell) {
-		cell.addNeighbor(foundCell);
+		cell.addNeighborPosition(foundCell->getPosition());
 	}
 }
 
 void Cells::addEmptyNeighborToCellsIfPossible(Position pos) { //Add a new cell to cells if it does not exist, and update neighbors of associated cells.
 	if (!find(pos)) {
-		Cell &cell = emplace(pos, false); //Initially dead.
+		Cell &cell = insert(std::make_pair(pos, Cell(pos, false))); //Initially dead.
 
 		//Add all neighbors to the newly created cell.
 		addNeighbors(cell);
 
 		//Add newlyCreatedCell as a neighbor to each neighbor of newlyCreatedCell.
 		addAsNeighborToEachNeighbor(cell);
-	}
-}
-
-void Cells::addAsNeighborToEachNeighbor(Cell &cell) {
-	auto cellNeighbors = cell.getNeighbors();
-	for (Cell *neighbor : cellNeighbors) {
-		neighbor->addNeighbor(&cell);
 	}
 }
 
@@ -198,7 +195,7 @@ void Cells::CellsHistory::last() {
 			if (result)
 				result->setAlive(!alive);
 			else {
-				Cell &cell = associatedCells->emplace(pos, !alive);
+				Cell &cell = associatedCells->insert(std::make_pair(pos, Cell(pos, !alive)));
 				associatedCells->addNeighbors(cell);
 				associatedCells->addAsNeighborToEachNeighbor(cell);
 			}
@@ -222,14 +219,59 @@ void Cells::CellsHistory::setLookingThroughHistory(bool lth) {
 }
 
 void Cells::removeCell(Cell &cell) { //Remove cell and remove cell from neighbors' neighbors container.
-	for (Cell *neighbor : cell.getNeighbors()) {
-		for (Cell::neighborType::iterator beg = neighbor->getNeighbors().begin(), last = neighbor->getNeighbors().end(); beg != last; ++beg) {
-			if (cell == **beg) {
-				neighbor->getNeighbors().erase(beg);
+	for (Position neighborPos : cell.getNeighborsPositions()) {
+		Cell &neighbor = *find(neighborPos);
+		for (auto beg = neighbor.getNeighborsPositions().cbegin(), last = neighbor.getNeighborsPositions().cend(); beg != last; ++beg) {
+			if (cell == *find(*beg)) {
+				//neighbor.getNeighborsPositions().erase(beg);
+				neighbor.removeNeighborPosition(beg);
 				break;
 			}
 		}
 	}
 
 	erase(cell.getPosition());
+}
+
+void Cells::performMaintenance() {
+	for (auto beg = begin(); beg != end(); ) {
+		if (!beg->getAlive() && !beg->hasAliveNeighbor(*this)) {
+			auto copy = beg;
+			++beg;
+			removeCell(*copy); //Iterator invalidated.
+		}
+		else
+			++beg;
+	}
+}
+
+bool Cell::hasAliveNeighbor(Cells &cells) {
+	for (Position neighborPos : neighborsPositions) {
+		if (cells.find(getPosition())->getAlive())
+			return true;
+	}
+	return false;
+}
+
+void Cells::addAsNeighborToEachNeighbor(Cell &cell) {
+	for (Position neighborPos : cell.getNeighborsPositions()) {
+		Cell &neighbor = *find(neighborPos);
+		find(neighbor.getPosition())->addNeighborPosition(cell.getPosition());
+	}
+}
+
+template<typename Key, typename T, typename HashFunctionObject> typename HashTable<Key, T, HashFunctionObject>::reference HashTable<Key, T, HashFunctionObject>::iterator::operator*() {
+	return base[index];
+}
+
+template<typename Key, typename T, typename HashFunctionObject> typename const HashTable<Key, T, HashFunctionObject>::const_reference HashTable<Key, T, HashFunctionObject>::const_iterator::operator*() {
+	return base[index];
+}
+
+template<typename Key, typename T, typename HashFunctionObject> typename HashTable<Key, T, HashFunctionObject>::value_type *HashTable<Key, T, HashFunctionObject>::iterator::operator->() {
+	return &base[index];
+}
+
+template<typename Key, typename T, typename HashFunctionObject> typename const HashTable<Key, T, HashFunctionObject>::value_type *HashTable<Key, T, HashFunctionObject>::const_iterator::operator->() {
+	return &base[index];
 }

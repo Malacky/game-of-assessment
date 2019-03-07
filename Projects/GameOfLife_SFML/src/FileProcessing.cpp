@@ -53,12 +53,12 @@ void addCellsFromStr(Cells &cells, std::string str) {
 			break;
 
 		case '*':
-			cells.emplace(currPos, true);
+			cells.insert(std::make_pair(currPos, Cell(currPos, true)));
 			++currPos.x;
 			break;
 
 		case '#':
-			cells.emplace(currPos, false);
+			cells.insert(std::make_pair(currPos, Cell(currPos, false)));
 			++currPos.x;
 			break;
 

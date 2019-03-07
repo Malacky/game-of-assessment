@@ -3,19 +3,24 @@
 
 #include "Parser.h"
 #include "Window.h"
+#include "HashTable.h"
 
 #include <SFML/Graphics.hpp>
 
 #include <unordered_map>
 #include <string>
 #include <iostream>
+#include <functional>
 #include <cstddef>
 #include <utility>
 #include <chrono>
+#include <type_traits>
+#include <limits>
+#include <algorithm>
 
 class Position {
 public:
-	typedef int coordType; //Not unsigned.
+	typedef int coordType; //Signed integer.
 
 	Position(coordType x, coordType y) : x{ x }, y{ y } {}
 	Position(sf::Vector2f v2f) : x{ coordType(v2f.x) }, y{ coordType(v2f.y) } {}
@@ -39,16 +44,21 @@ public:
 
 class PositionHasher { //I know next to nothing about hash functions.
 public:
-	std::size_t operator()(const Position &pos) const noexcept {
-		return std::hash<Position::coordType>{}(pos.x) ^ std::hash<Position::coordType>{}(pos.y);
+	std::size_t operator()(const Position &pos) const { //https://stackoverflow.com/questions/2590677/how-do-i-combine-hash-values-in-c0x
+		auto hash1 = std::hash<Position::coordType>{}(pos.x), hash2 = std::hash<Position::coordType>{}(pos.y);
+		hash1 ^= hash2 + 0x9e3779b97f4a7c16 + (hash1 << 6) + (hash2 >> 2);
+		return hash1;
 	}
 };
 
+class Cells;
+
 class Cell {
 public:
-	typedef std::vector<Cell*> neighborType;
+	typedef std::vector<Position> neighborPositionType;
 
 	Cell(Position pos, bool a) : position{ pos }, alive{ a }, futureAlive{ a } {}
+	Cell() = default;
 
 	friend bool operator==(Cell &cell1, Cell &cell2) {
 		return cell1.getPosition() == cell2.getPosition();
@@ -77,31 +87,28 @@ public:
 		futureAlive = a;
 	}
 
-	void addNeighbor(Cell *cell) {
-		neighbors.push_back(cell);
+	void addNeighborPosition(Position pos) {
+		neighborsPositions.push_back(pos);
 	}
 
-	neighborType &getNeighbors() noexcept {
-		return neighbors;
+	bool hasAliveNeighbor(Cells &cells);
+
+	const neighborPositionType &getNeighborsPositions() const noexcept {
+		return neighborsPositions;
 	}
 
-	neighborType::size_type aliveNeighborCount() const noexcept {
-		neighborType::size_type aliveCount = 0;
-		for (Cell *cell : neighbors) {
-			if (cell->getAlive())
-				++aliveCount;
-		}
-		return aliveCount;
+	neighborPositionType::size_type neighborCount() const noexcept {
+		return neighborsPositions.size();
 	}
 
-	neighborType::size_type neighborCount() const noexcept {
-		return neighbors.size();
+	void removeNeighborPosition(neighborPositionType::const_iterator cIt) {
+		neighborsPositions.erase(cIt);
 	}
 
 	static sf::Vector2f size;
 
 private:
-	neighborType neighbors;
+	neighborPositionType neighborsPositions;
 	Position position;
 	bool futureAlive; //Determines if the cell is alive after evaluating the rules. (The first part of a tick)
 	bool alive;
@@ -114,7 +121,7 @@ public:
 	typedef Cell &reference;
 	typedef const Cell &const_reference;
 private:
-	class CellsHistory { //Used in the storing of history to reduce memory usage. Stores the changes made to all cells in each update. We can then loop through those changes to look through history.
+	class CellsHistory { //Used in the storing of history. Stores the changes made to all cells in each update. We can then loop through those changes to look through history.
 	public:
 		CellsHistory &operator=(CellsHistory&) = delete;
 		CellsHistory &operator=(CellsHistory&&) = delete; //Pointer is passed to constructor, so delete.
@@ -229,11 +236,6 @@ public:
 	void expandIfNecessary(Cell &cell);
 	void addEmptyNeighborToCellsIfPossible(Position pos);
 
-	template<typename... Types> Cell &emplace(Position pos, Types&&... args) {
-		Cell &cell = cellsContainer.emplace(std::make_pair(pos, Cell(pos, std::forward<Types>(args)...))).first->second;
-		return cell;
-	}
-
 	void stepBackInHistory() {
 		history.last();
 	}
@@ -304,7 +306,11 @@ public:
 		history.appendChange(cell);
 	}
 
-	void addAsNeighborToEachNeighbor(Cell &cell);
+	Cell &insert(std::pair<Position, Cell> pair) {
+		return cellsContainer.emplace(pair).first->second;
+	}
+
+	void performMaintenance();
 
 	void removeCell(Cell &cell); //Remove cell and remove cell from neighbors' neighbors container.
 
@@ -314,17 +320,19 @@ public:
 
 	void addNeighborToCellIfPossible(Cell &cell, Position pos);
 
+	void addAsNeighborToEachNeighbor(Cell &cell);
+
 	auto begin() {
 		return iterator(cellsContainer.begin());
 	}
-	const auto cbegin() const {
-		return const_iterator(cellsContainer.begin());
+	auto cbegin() const {
+		return const_iterator(cellsContainer.cbegin());
 	}
 	auto end() {
 		return iterator(cellsContainer.end());
 	}
-	const auto cend() const {
-		return const_iterator(cellsContainer.end());
+	auto cend() const {
+		return const_iterator(cellsContainer.cend());
 	}
 
 private:
@@ -333,12 +341,15 @@ private:
 	cellsContainerType cellsContainer;
 	historyType history;
 	Parser rules;
+	mutable std::vector<sf::Vertex> vertices; //Used in rendering.
 	decltype(std::chrono::steady_clock::now()) tickStartTime{ std::chrono::steady_clock::now() };
 	std::chrono::nanoseconds timePassedSinceLastTick{ 0 };
-	std::chrono::milliseconds tickAimTime{ 1000 }, tickRewindAimTime{ 1000 };
 	std::chrono::nanoseconds timePassedSinceLastMaintenance{ 0 };
+	std::chrono::milliseconds tickAimTime{ 1000 }, tickRewindAimTime{ 1000 };
 	bool pause = false;
 	bool rewinding = false;
 };
+
+Cell::neighborPositionType::size_type aliveNeighborCount(const Cell &cell, Cells &cells);
 
 #endif

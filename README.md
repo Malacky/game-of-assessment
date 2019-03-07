@@ -30,15 +30,16 @@ Not implemented.
 Not implemented.
 
 ## Extension 8
-Implemented.
+Implemented. Use the arrow keys to move around.
 
 ## Extension 9
-Implemented.
+Implemented. Use the scroll wheel to zoom in/out.
 
 # Usage
 The first argument provided to the main function is the rules file, the second is the map file.
-The green cells are alive, the red are dead.
-You can fast-forward and rewind using the controls found at the bottom. Clicking the fast-forward or rewind buttons will slow down the current operation, so you might have to click them several times.
+The green squares represent cells that are alive.
+You can fast-forward and rewind using the controls found at the bottom. Clicking the fast-forward or rewind buttons will slow down/ speed up the current operation, so you might have to click them several times.
+Place the executable in the bin folder.
 If SFML is having trouble locating the assets bitmap.jpg, you can change the file path using the variable assetsFilePath in main.cpp
 
 # Original

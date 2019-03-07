@@ -8,6 +8,7 @@
 #include <memory>
 
 class Cell;
+class Cells;
 
 class Token {
 public:
@@ -108,9 +109,9 @@ class Parser {
 public:
 	void operator()(std::string str);
 	void createParseTree(std::vector<Token> tokens);
-	Cell &operator()(Cell &cell);
-	Cell &evaluateRulesAndSetFuture(Cell &cell, BinaryParseTree &bpt);
-	bool conditional(Cell &cell, BinaryParseTree &bpt);
+	Cell &operator()(Cell &cell, Cells &cells);
+	Cell &evaluateRulesAndSetFuture(Cell &cell, Cells &cells, BinaryParseTree &bpt);
+	bool conditional(Cell &cell, Cells &cells, BinaryParseTree &bpt);
 
 private:
 	std::vector<std::shared_ptr<BinaryParseTree>> parseTrees; //The roots of the trees representing expressions.
